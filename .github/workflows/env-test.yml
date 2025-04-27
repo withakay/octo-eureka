@@ -13,6 +13,22 @@ jobs:
       foo_variable_value: ${{ steps.export-secrets.outputs.foo_variable }}
 
     steps:
+      - name: Validate secrets and variables
+        run: |
+          if [[ "${{ secrets.FOO_SECRET }}" != "FOO" ]]; then
+            echo "❌ FOO_SECRET does not match expected value"
+            exit 1
+          else
+            echo "✅ FOO_SECRET validated"
+          fi
+
+          if [[ "${{ vars.FOO_VARIABLE }}" != "FOO-VAR" ]]; then
+            echo "❌ FOO_VARIABLE does not match expected value"
+            exit 1
+          else
+            echo "✅ FOO_VARIABLE validated"
+          fi
+
       - name: Export secrets and variables
         id: export-secrets
         run: |
@@ -21,7 +37,7 @@ jobs:
 
       - name: Debug output (sanitized)
         run: |
-          echo "FOO_SECRET has been read and stored in outputs"
+          echo "FOO_SECRET has been read, validated, and stored in outputs"
           echo "FOO_VARIABLE = ${{ vars.FOO_VARIABLE }}"
 
   bar-job:
@@ -33,6 +49,22 @@ jobs:
       bar_variable_value: ${{ steps.export-secrets.outputs.bar_variable }}
 
     steps:
+      - name: Validate secrets and variables
+        run: |
+          if [[ "${{ secrets.BAR_SECRET }}" != "BAR" ]]; then
+            echo "❌ BAR_SECRET does not match expected value"
+            exit 1
+          else
+            echo "✅ BAR_SECRET validated"
+          fi
+
+          if [[ "${{ vars.BAR_VARIABLE }}" != "BAR-VAR" ]]; then
+            echo "❌ BAR_VARIABLE does not match expected value"
+            exit 1
+          else
+            echo "✅ BAR_VARIABLE validated"
+          fi
+
       - name: Export secrets and variables
         id: export-secrets
         run: |
@@ -41,7 +73,7 @@ jobs:
 
       - name: Debug output (sanitized)
         run: |
-          echo "BAR_SECRET has been read and stored in outputs"
+          echo "BAR_SECRET has been read, validated, and stored in outputs"
           echo "BAR_VARIABLE = ${{ vars.BAR_VARIABLE }}"
 
   verify-job:
