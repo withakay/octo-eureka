@@ -1,0 +1,85 @@
+name: Environment Secrets Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  foo-job:
+    name: Access Foo Environment
+    runs-on: ubuntu-latest
+    environment: Foo
+    outputs:
+      foo_secret_value: ${{ steps.export-secrets.outputs.foo_secret }}
+      foo_variable_value: ${{ steps.export-secrets.outputs.foo_variable }}
+
+    steps:
+      - name: Export secrets and variables
+        id: export-secrets
+        run: |
+          echo "foo_secret=${{ secrets.FOO_SECRET }}" >> $GITHUB_OUTPUT
+          echo "foo_variable=${{ vars.FOO_VARIABLE }}" >> $GITHUB_OUTPUT
+
+      - name: Debug output (sanitized)
+        run: |
+          echo "FOO_SECRET has been read and stored in outputs"
+          echo "FOO_VARIABLE = ${{ vars.FOO_VARIABLE }}"
+
+  bar-job:
+    name: Access Bar Environment
+    runs-on: ubuntu-latest
+    environment: Bar
+    outputs:
+      bar_secret_value: ${{ steps.export-secrets.outputs.bar_secret }}
+      bar_variable_value: ${{ steps.export-secrets.outputs.bar_variable }}
+
+    steps:
+      - name: Export secrets and variables
+        id: export-secrets
+        run: |
+          echo "bar_secret=${{ secrets.BAR_SECRET }}" >> $GITHUB_OUTPUT
+          echo "bar_variable=${{ vars.BAR_VARIABLE }}" >> $GITHUB_OUTPUT
+
+      - name: Debug output (sanitized)
+        run: |
+          echo "BAR_SECRET has been read and stored in outputs"
+          echo "BAR_VARIABLE = ${{ vars.BAR_VARIABLE }}"
+
+  verify-job:
+    name: Verify Environment Values
+    needs: [foo-job, bar-job]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Foo values
+        run: |
+          if [[ "${{ needs.foo-job.outputs.foo_secret_value }}" == "FOO" ]]; then
+            echo "✅ FOO_SECRET verified correctly"
+          else
+            echo "❌ FOO_SECRET verification failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.foo-job.outputs.foo_variable_value }}" == "FOO-VAR" ]]; then
+            echo "✅ FOO_VARIABLE verified correctly"
+          else
+            echo "❌ FOO_VARIABLE verification failed"
+            exit 1
+          fi
+
+      - name: Verify Bar values
+        run: |
+          if [[ "${{ needs.bar-job.outputs.bar_secret_value }}" == "BAR" ]]; then
+            echo "✅ BAR_SECRET verified correctly"
+          else
+            echo "❌ BAR_SECRET verification failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.bar-job.outputs.bar_variable_value }}" == "BAR-VAR" ]]; then
+            echo "✅ BAR_VARIABLE verified correctly"
+          else
+            echo "❌ BAR_VARIABLE verification failed"
+            exit 1
+          fi
+
+      - name: Summary
+        run: echo "🎉 All environment secrets and variables verified successfully!"
