@@ -17,14 +17,10 @@ jobs:
         id: export-secrets
         run: |
           # Define hash function - base64 encode with simple transformation
-          hash_value() {
-            # Get a base64 encoding with a salt
-            SALT="github-workflow-salt-$(date +%Y)"
-            VALUE="$1$SALT"
-            # Base64 encode and add simple transformation to obscure it
-            HASH=$(echo -n "$VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
-            echo "$HASH"
-          }
+          SALT="github-workflow-salt-$(date +%Y)"
+          VALUE="${{ secrets.FOO_SECRET }}$SALT"
+          # Base64 encode and add simple transformation to obscure it
+          SECRET_HASH=$(echo -n "$VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
 
           # Validate secret
           if [[ "${{ secrets.FOO_SECRET }}" != "FOO" ]]; then
@@ -35,7 +31,6 @@ jobs:
           fi
 
           # Output the hashed/obfuscated value
-          SECRET_HASH=$(hash_value "${{ secrets.FOO_SECRET }}")
           echo "secret_hash=$SECRET_HASH" >> $GITHUB_OUTPUT
 
       - name: Debug output (sanitized)
@@ -56,14 +51,10 @@ jobs:
         id: export-secrets
         run: |
           # Define hash function - base64 encode with simple transformation
-          hash_value() {
-            # Get a base64 encoding with a salt
-            SALT="github-workflow-salt-$(date +%Y)"
-            VALUE="$1$SALT"
-            # Base64 encode and add simple transformation to obscure it
-            HASH=$(echo -n "$VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
-            echo "$HASH"
-          }
+          SALT="github-workflow-salt-$(date +%Y)"
+          VALUE="${{ secrets.BAR_SECRET }}$SALT"
+          # Base64 encode and add simple transformation to obscure it
+          SECRET_HASH=$(echo -n "$VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
 
           # Validate secret
           if [[ "${{ secrets.BAR_SECRET }}" != "BAR" ]]; then
@@ -74,7 +65,6 @@ jobs:
           fi
 
           # Output the hashed/obfuscated value
-          SECRET_HASH=$(hash_value "${{ secrets.BAR_SECRET }}")
           echo "secret_hash=$SECRET_HASH" >> $GITHUB_OUTPUT
 
       - name: Debug output (sanitized)
@@ -87,25 +77,19 @@ jobs:
     needs: [foo-job, bar-job]
     runs-on: ubuntu-latest
     steps:
-      - name: Setup hash function
-        id: setup
+      - name: Generate expected hashes
+        id: generate-hashes
         run: |
-          # Define the same hash function from above for consistency
-          hash_value() {
-            # Get a base64 encoding with a salt
-            SALT="github-workflow-salt-$(date +%Y)"
-            VALUE="$1$SALT"
-            # Base64 encode and add simple transformation to obscure it
-            HASH=$(echo -n "$VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
-            echo "$HASH"
-          }
+          # Use the same hashing approach for consistency
+          SALT="github-workflow-salt-$(date +%Y)"
 
-          # Store the function for use in other steps
-          echo 'HASH_FUNCTION() { hash_value "$1"; }' >> $GITHUB_ENV
+          # Hash the FOO expected value
+          FOO_VALUE="FOO$SALT"
+          FOO_EXPECTED_HASH=$(echo -n "$FOO_VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
 
-          # Hash the expected values for comparison
-          FOO_EXPECTED_HASH=$(hash_value "FOO")
-          BAR_EXPECTED_HASH=$(hash_value "BAR")
+          # Hash the BAR expected value
+          BAR_VALUE="BAR$SALT"
+          BAR_EXPECTED_HASH=$(echo -n "$BAR_VALUE" | base64 | tr 'A-Za-z' 'N-ZA-Mn-za-m')
 
           # Save expected hashes for later steps
           echo "foo_expected_hash=$FOO_EXPECTED_HASH" >> $GITHUB_OUTPUT
@@ -114,7 +98,7 @@ jobs:
       - name: Verify Foo values
         run: |
           # Compare the hash received from foo-job with expected hash
-          if [[ "${{ needs.foo-job.outputs.foo_secret_hash }}" == "${{ steps.setup.outputs.foo_expected_hash }}" ]]; then
+          if [[ "${{ needs.foo-job.outputs.foo_secret_hash }}" == "${{ steps.generate-hashes.outputs.foo_expected_hash }}" ]]; then
             echo "✅ FOO_SECRET verified correctly (hash matches)"
           else
             echo "❌ FOO_SECRET verification failed"
@@ -131,7 +115,7 @@ jobs:
       - name: Verify Bar values
         run: |
           # Compare the hash received from bar-job with expected hash
-          if [[ "${{ needs.bar-job.outputs.bar_secret_hash }}" == "${{ steps.setup.outputs.bar_expected_hash }}" ]]; then
+          if [[ "${{ needs.bar-job.outputs.bar_secret_hash }}" == "${{ steps.generate-hashes.outputs.bar_expected_hash }}" ]]; then
             echo "✅ BAR_SECRET verified correctly (hash matches)"
           else
             echo "❌ BAR_SECRET verification failed"
